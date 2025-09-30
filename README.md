@@ -40,7 +40,15 @@ Core Endpoints
 - `GET /auth/callback`: Finish OAuth; upsert user + tokens
 - `GET /ingest/spotify?user_id=ID`: Fetch top artists/tracks (short/medium/long) and audio centroid
 - `GET /me?user_id=ID`: Get user record
-- `GET /matches?user_id=ID`: Ranked matches with scores and basic profile info
+- `GET /matches?user_id=ID`: Ranked matches with scores and summary signals
+  - Adds: `shared_artists_count`, `genre_overlap`, `audio_affinity`
+- `GET /matches/explain?user_id=ID&other_id=ID`: Explain a specific match with details
+  - `summary`: score, overlaps, audio affinity
+  - `shared_artists`: list with names and ranks for both users
+  - `shared_genres`: overlapping genres with counts per user
+  - `audio_breakdown`: per-dimension raw/normalized values and deltas
+  - `suggestions_new_artists`: other user’s artists you may like (ranked by genre overlap)
+  - `icebreaker_tracks`: other user’s top tracks by shared artists
 
 Testing
 - `make test`  # uses a temporary SQLite file DB (`test.db`)
@@ -65,3 +73,9 @@ Next Steps
 - Filters (same country, min overlap)
 - Postgres + pgvector for ANN candidate preselect
 - Minimal React/Next.js frontend hitting these endpoints
+
+Changes in this iteration
+- Audio feature normalization for fairer similarity scoring.
+- Safer ORM deletes in ingest and improved token refresh errors.
+- Enriched `/matches` response with helpful summary fields.
+- New explainability endpoint `/matches/explain` with actionable insights.

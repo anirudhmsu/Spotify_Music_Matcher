@@ -1,5 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from app.db import init_db
@@ -12,11 +13,12 @@ load_dotenv()
 from app.routes import oauth, ingest, matches, me
 from app.routes import health
 
-app = FastAPI(title="Spotify Match POC")
-
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
+    yield
+
+app = FastAPI(title="Spotify Match POC", lifespan=lifespan)
 
 app.include_router(oauth.router, prefix="/auth", tags=["auth"])
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
