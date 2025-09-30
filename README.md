@@ -2,6 +2,7 @@ Spotify Music Matching (Backend)
 
 Spotify Music Matching is a Hobby Project of mine, where people can match with eachother based on their music taste, sort of like a Social Media for people, to make friends based on their Music Taste. The APP is currently on initial stages and is open for contribution. (Merge Error)
 
+
 What This Is
 - FastAPI backend for Spotify-based social matching: OAuth, data ingest (top artists/tracks + audio features), similarity scoring, and a “people like me” leaderboard.
 
