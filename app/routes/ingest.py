@@ -1,6 +1,6 @@
 # app/routes/ingest.py
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session
+from sqlmodel import Session, select, delete
 from app.db import get_session
 from app.services.spotify import ensure_token, get_top, get_audio_features
 from app.models.user import User
@@ -15,12 +15,12 @@ async def ingest_spotify(user_id: int = Query(...), session: Session = Depends(g
     if not user: raise HTTPException(404, "User not found")
     token = await ensure_token(user_id, session)
 
-    for term in ["short","medium","long"]:
+    for term in ["short", "medium", "long"]:
         artists = await get_top(token, "artists", term)
         tracks  = await get_top(token, "tracks", term)
-        # wipe & insert (POC simplicity)
-        session.exec(f"DELETE FROM userartist WHERE user_id={user_id} AND term='{term}'")
-        session.exec(f"DELETE FROM usertrack WHERE user_id={user_id} AND term='{term}'")
+        # wipe & insert (POC simplicity) via ORM deletes
+        session.exec(delete(UserArtist).where(UserArtist.user_id == user_id, UserArtist.term == term))
+        session.exec(delete(UserTrack).where(UserTrack.user_id == user_id, UserTrack.term == term))
         for rank, a in enumerate(artists, start=1):
             session.add(UserArtist(
                 user_id=user_id, term=term,
@@ -38,10 +38,10 @@ async def ingest_spotify(user_id: int = Query(...), session: Session = Depends(g
         session.commit()
 
     # audio centroid from top tracks (medium term as baseline)
-    top_medium = session.exec(
-        f"SELECT track_id FROM usertrack WHERE user_id={user_id} AND term='medium' ORDER BY rank LIMIT 50"
+    rows = session.exec(
+        select(UserTrack.track_id).where(UserTrack.user_id == user_id, UserTrack.term == "medium").order_by(UserTrack.rank).limit(50)
     ).all()
-    ids = [row[0] for row in top_medium]
+    ids = [tid for (tid,) in rows]
     feats = await get_audio_features(token, ids)
     if feats:
         def col(k): return [f[k] for f in feats if f]
