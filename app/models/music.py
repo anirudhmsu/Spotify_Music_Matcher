@@ -30,3 +30,18 @@ class UserAudioProfile(SQLModel, table=True):
     acousticness: float
     loudness: float
 
+
+class UserGenreSummary(SQLModel, table=True):
+    user_id: int = Field(foreign_key="user.id", primary_key=True)
+    genre: str = Field(primary_key=True, index=True)
+    count: int
+    term: str = Field(primary_key=True)  # short|medium|long
+
+
+class RecentTrack(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    track_id: str
+    track_name: str
+    artist_ids: str  # CSV
+    played_at: str  # ISO timestamp stored as text for simplicity
