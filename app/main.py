@@ -11,6 +11,9 @@ import os
 load_dotenv()
 
 from app.routes import oauth, ingest, matches, me
+from app.routes import settings as settings_routes
+from app.routes import connections as connections_routes
+from app.routes import messages as messages_routes
 from app.routes import health
 
 @asynccontextmanager
@@ -24,6 +27,9 @@ app.include_router(oauth.router, prefix="/auth", tags=["auth"])
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
 app.include_router(me.router, prefix="/me", tags=["me"])
 app.include_router(matches.router, prefix="/matches", tags=["matches"])
+app.include_router(settings_routes.router, tags=["settings"])  # /settings and block endpoints
+app.include_router(connections_routes.router, tags=["connections"])  # /connections
+app.include_router(messages_routes.router, tags=["messages"])  # /messages
 app.include_router(health.router, tags=["health"])  # adds / and /healthz
 
 # Allow local frontends during development

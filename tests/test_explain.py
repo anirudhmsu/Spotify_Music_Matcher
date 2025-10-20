@@ -40,8 +40,8 @@ def test_explain_endpoint_returns_breakdown(client):
         "audio_breakdown",
         "suggestions_new_artists",
         "icebreaker_tracks",
+        "recent_activity",
     }
     assert data["summary"]["shared_artists_count"] == 1
     assert any(itm["id"] == "t1" for itm in data["icebreaker_tracks"])  # a2 track shows up
     assert data["summary"]["score"] > 0
-
