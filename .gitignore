@@ -3,4 +3,4 @@
 /data
 
 .env
-dev.db
+dev.db__pycache__/
