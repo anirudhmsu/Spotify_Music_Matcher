@@ -40,7 +40,9 @@ Core Endpoints
 - `GET /auth/login`: Start Spotify OAuth
 - `GET /auth/callback`: Finish OAuth; upsert user + tokens
 - `GET /ingest/spotify?user_id=ID`: Fetch top artists/tracks (short/medium/long) and audio centroid
+- `GET /ingest/spotify/recent?user_id=ID`: Fetch and store recently played tracks
 - `GET /me?user_id=ID`: Get user record
+- `GET /me/recent?user_id=ID`: Get recent listening activity
 - `GET /matches?user_id=ID`: Ranked matches with scores and summary signals
   - Adds: `shared_artists_count`, `genre_overlap`, `audio_affinity`
 - `GET /matches/explain?user_id=ID&other_id=ID`: Explain a specific match with details
@@ -50,6 +52,19 @@ Core Endpoints
   - `audio_breakdown`: per-dimension raw/normalized values and deltas
   - `suggestions_new_artists`: other user’s artists you may like (ranked by genre overlap)
   - `icebreaker_tracks`: other user’s top tracks by shared artists
+  - `recent_activity`: other user’s recent plays by shared artists
+- `GET /settings?user_id=ID`: Get privacy settings
+- `PUT /settings?user_id=ID`: Update privacy settings
+- `GET /users/blocked?user_id=ID`: List blocked user IDs
+- `POST /users/{target_id}/block?user_id=ID`: Block a user
+- `DELETE /users/{target_id}/block?user_id=ID`: Unblock a user
+- `POST /connections/request?from_user_id=A&to_user_id=B` Send a connection request
+- `GET /connections/pending?user_id=ID`: Pending incoming requests
+- `POST /connections/{request_id}/accept|decline`: Accept/decline a request
+- `GET /connections?user_id=ID`: List accepted connections
+- `POST /messages?from_user_id=A&to_user_id=B&content=...`: Send message to a connection
+- `GET /messages/{user_id}?other_id=ID`: Get a conversation thread
+- `GET /messages/conversations?user_id=ID`: List conversations with last message
 
 Testing
 - `make test`  # uses a temporary SQLite file DB (`test.db`)
@@ -66,6 +81,9 @@ Project Layout
 - `app/routes/oauth.py`: Spotify OAuth login/callback
 - `app/routes/ingest.py`: Pulls top artists/tracks; builds audio centroid
 - `app/routes/matches.py`: Leaderboard of similar users
+- `app/routes/settings.py`: Privacy settings and blocklist endpoints
+- `app/routes/connections.py`: Connection request workflow
+- `app/routes/messages.py`: Messaging between connected users
 - `app/services/spotify.py`: Token refresh + Spotify API calls
 - `app/services/scoring.py`: Similarity function
 
