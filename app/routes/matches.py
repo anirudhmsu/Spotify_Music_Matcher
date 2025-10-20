@@ -2,16 +2,42 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlmodel import Session, select
 from app.db import get_session
-from app.models.user import User
-from app.models.music import UserArtist, UserAudioProfile, UserTrack
+from app.models.user import User, UserSettings
+from app.models.music import UserArtist, UserAudioProfile, UserTrack, RecentTrack
 from app.services.scoring import score, jaccard, audio_affinity, normalize_audio
 
 router = APIRouter()
 
+def _parse_blocked(csv_ids: str | None) -> set[int]:
+    if not csv_ids:
+        return set()
+    out: set[int] = set()
+    for p in csv_ids.split(","):
+        p = p.strip()
+        if not p:
+            continue
+        try:
+            out.add(int(p))
+        except ValueError:
+            continue
+    return out
+
+
 @router.get("/")
-def get_matches(user_id: int = Query(...), limit: int = 20, session: Session = Depends(get_session)):
+def get_matches(
+    user_id: int = Query(...),
+    limit: int = 20,
+    cursor: int = 0,
+    country: str | None = None,
+    min_score: float | None = None,
+    min_shared_artists: int = 0,
+    has_genres: str | None = None,
+    session: Session = Depends(get_session),
+):
     me = session.get(User, user_id)
     if not me: return []
+    my_settings = session.get(UserSettings, me.id)
+    my_blocked = _parse_blocked(my_settings.blocked_user_ids) if my_settings else set()
 
     def pack(user_id: int):
         artists = [
@@ -41,11 +67,28 @@ def get_matches(user_id: int = Query(...), limit: int = 20, session: Session = D
 
     scored = []
     for u in candidates:
+        # Privacy controls and blocks
+        s_other = session.get(UserSettings, u.id)
+        if s_other and not s_other.is_public:
+            continue
+        other_blocked_me = _parse_blocked(s_other.blocked_user_ids) if s_other else set()
+        if (u.id in my_blocked) or (me.id in other_blocked_me):
+            continue
+        if country and (u.country or "").upper() != country.upper():
+            continue
         up = pack(u.id)
         s = score(me_pack, up)
         shared_artists = len(set(me_pack["artists"]) & set(up["artists"]))
         g_overlap = jaccard(me_pack["genres"], up["genres"]) if me_pack["genres"] or up["genres"] else 0.0
         a_aff = audio_affinity(me_pack["audio"], up["audio"])
+        if min_shared_artists and shared_artists < min_shared_artists:
+            continue
+        if has_genres:
+            required = {g.strip().lower() for g in has_genres.split(",") if g.strip()}
+            if required and not (required & {g.lower() for g in up["genres"]}):
+                continue
+        if min_score is not None and s < float(min_score):
+            continue
         scored.append({
             "user_id": u.id,
             "display_name": u.display_name,
@@ -56,7 +99,8 @@ def get_matches(user_id: int = Query(...), limit: int = 20, session: Session = D
             "audio_affinity": round(a_aff, 4),
         })
     scored.sort(key=lambda x: x["score"], reverse=True)
-    return scored[:limit]
+    start = max(cursor, 0)
+    return scored[start:start + max(1, min(limit, 100))]
 
 
 @router.get("/explain")
@@ -178,6 +222,20 @@ def explain_match(
             })
     icebreaker = icebreaker[:10]
 
+    # Recent activity for the other user filtered to shared artists
+    recent_rows = list(session.exec(select(RecentTrack).where(RecentTrack.user_id == other_id)))
+    recent_activity = []
+    for rt in recent_rows:
+        arts = [aid for aid in (rt.artist_ids or "").split(",") if aid]
+        if shared_set & set(arts):
+            recent_activity.append({
+                "track_id": rt.track_id,
+                "track_name": rt.track_name,
+                "played_at": rt.played_at,
+                "artist_ids": arts,
+            })
+    recent_activity = recent_activity[:10]
+
     # Top-level metrics
     top = {
         "score": round(score({"artists": list(me_map.keys()), "genres": list(me_genres), "audio": me_audio},
@@ -194,4 +252,5 @@ def explain_match(
         "audio_breakdown": audio_breakdown,
         "suggestions_new_artists": suggestions,
         "icebreaker_tracks": icebreaker,
+        "recent_activity": recent_activity,
     }
