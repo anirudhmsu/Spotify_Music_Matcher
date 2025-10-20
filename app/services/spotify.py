@@ -50,3 +50,12 @@ async def get_audio_features(token: str, track_ids: list[str]):
         r = await client.get(f"{BASE}/audio-features", headers={"Authorization": f"Bearer {token}"}, params={"ids": ",".join(track_ids[:100])}, timeout=30)
         r.raise_for_status()
         return r.json()["audio_features"]
+
+
+async def get_recently_played(token: str, limit: int = 50):
+    url = f"{BASE}/me/player/recently-played"
+    params = {"limit": limit}
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, headers={"Authorization": f"Bearer {token}"}, params=params, timeout=30)
+        r.raise_for_status()
+        return r.json().get("items", [])
